@@ -6,15 +6,30 @@ interface SelectOption {
   value: string | number;
 }
 
-interface SelectProps {
-  options: SelectOption[];
+interface SingleSelectProps {
+  multiple?: false;
   value?: SelectOption | undefined;
   onChange: (value: SelectOption | undefined) => void;
 }
 
-export function Select({ onChange, options, value }: SelectProps) {
+interface MultipleSelectProps {
+  multiple: true;
+  value: SelectOption[];
+  onChange: (value: SelectOption[]) => void;
+}
+// interface SelectProps {
+//   options: SelectOption[];
+//   value?: SelectOption | undefined;
+//   onChange: (value: SelectOption | undefined) => void;
+// }
+
+type SelectProps = {
+  options: SelectOption[];
+} & (SingleSelectProps | MultipleSelectProps);
+
+export function Select({ multiple, onChange, options, value }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [highlightedIndex, setHighlightedIndex] = useState(0)
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   function showSelectList() {
     setIsOpen((isOpen) => !isOpen);
@@ -22,7 +37,7 @@ export function Select({ onChange, options, value }: SelectProps) {
 
   function clearOption(event: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
     event.stopPropagation();
-    onChange(undefined);
+    multiple ? onChange([]) : onChange(undefined);
   }
 
   function selectList(event: React.MouseEvent<HTMLLIElement, MouseEvent>) {
@@ -31,19 +46,30 @@ export function Select({ onChange, options, value }: SelectProps) {
   }
 
   function selectOption(option: SelectOption) {
-    if(option === value) return
+    if (multiple) {
+      if (value?.includes(option)) {
+        onChange(value.filter((item) => item !== option));
+        {
+          /*remove da lista se já esta salvo*/
+        }
+      } else {
+        // salva a nova opção
+        onChange([...value, option]);
+      }
+    } else {
+      if (option === value) return;
 
-    onChange(option);
+      onChange(option);
+    }
   }
 
-  function isOptionSelected(option: SelectOption){
-    return option === value
+  function isOptionSelected(option: SelectOption) {
+    return multiple ? value.includes(option) : option === value;
   }
 
- 
   useEffect(() => {
-    if(isOpen) setHighlightedIndex(0)
-  },[isOpen])
+    if (isOpen) setHighlightedIndex(0);
+  }, [isOpen]);
 
   return (
     <div
@@ -52,7 +78,23 @@ export function Select({ onChange, options, value }: SelectProps) {
       tabIndex={0}
       className={styles.container}
     >
-      <span className={styles.value}>{value?.label}</span>
+      <span className={styles.value}>
+        {multiple
+          ? value.map((item) => (
+              <button
+                key={item.value}
+                className={styles['option-badge']}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  selectOption(item);
+                }}
+              >
+                {item.label}
+                <span className={styles["remove-btn"]}>&times;</span>
+              </button>
+            ))
+          : value?.label}
+      </span>
       <button onClick={(e) => clearOption(e)} className={styles["clear-btn"]}>
         &times;
       </button>
@@ -62,8 +104,7 @@ export function Select({ onChange, options, value }: SelectProps) {
         {options.map((option, index) => (
           <li
             onClick={(e) => {
-              selectList(e), 
-              selectOption(option);
+              selectList(e), selectOption(option);
             }}
             key={option.value}
             onMouseEnter={() => setHighlightedIndex(index)}
