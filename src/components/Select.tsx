@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "./select.module.css";
 
 interface SelectOption {
@@ -17,11 +17,6 @@ interface MultipleSelectProps {
   value: SelectOption[];
   onChange: (value: SelectOption[]) => void;
 }
-// interface SelectProps {
-//   options: SelectOption[];
-//   value?: SelectOption | undefined;
-//   onChange: (value: SelectOption | undefined) => void;
-// }
 
 type SelectProps = {
   options: SelectOption[];
@@ -30,6 +25,7 @@ type SelectProps = {
 export function Select({ multiple, onChange, options, value }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   function showSelectList() {
     setIsOpen((isOpen) => !isOpen);
@@ -71,8 +67,49 @@ export function Select({ multiple, onChange, options, value }: SelectProps) {
     if (isOpen) setHighlightedIndex(0);
   }, [isOpen]);
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target != containerRef.current) return;
+      console.log(e.code);
+      switch (e.code) {
+        case "Enter":
+        case "NumpadEnter":
+        case "Space":
+          setIsOpen((prev) => !prev);
+          if (isOpen) selectOption(options[highlightedIndex]);
+          break;
+
+        case "ArrowUp":
+        case "ArrowDown": {
+          if (!isOpen) {
+            setIsOpen(true);
+            break;
+          }
+          // eslint-disable-next-line no-case-declarations
+          const newValue = highlightedIndex + (e.code === "ArrowDown" ? 1 : -1);
+          if (newValue >= 0 && newValue < options.length) {
+            setHighlightedIndex(newValue);
+          }
+          break;
+        }
+
+        case "Escape":
+          setIsOpen(false);
+          break;
+      }
+    };
+    containerRef.current?.addEventListener("keydown", handler);
+
+    return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      containerRef.current?.removeEventListener("keydown", handler);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightedIndex, isOpen, options]);
+
   return (
     <div
+      ref={containerRef}
       onClick={showSelectList}
       onBlur={() => setIsOpen(false)}
       tabIndex={0}
@@ -83,7 +120,7 @@ export function Select({ multiple, onChange, options, value }: SelectProps) {
           ? value.map((item) => (
               <button
                 key={item.value}
-                className={styles['option-badge']}
+                className={styles["option-badge"]}
                 onClick={(e) => {
                   e.stopPropagation();
                   selectOption(item);
